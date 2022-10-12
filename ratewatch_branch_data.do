@@ -1,103 +1,8 @@
-// RateWATCH data  
-/*--------------- 
-clear 
-clear matrix
-clear mata
-set maxvar 10000
-set more off
-*/
-//local dir_callreport  ="G:\Data\cb\calldataREADY_07112019"
-//local dir_callreport  ="D:\Dropbox\Banks\_data\_commercialbank"
-
-capture cd  "C:\Users\begenau\Dropbox\Banks\_data\_rateWatch"
-capture cd  "D:\Dropbox\Banks\_data\_rateWatch"
-* path to ratewatch data
-local dir_ratewatch: pwd
-
-capture cd  "C:\Users\begenau\Dropbox\Banks\_data\_branchData\all_YEAR"
-capture cd  "D:\Dropbox\Banks\_data\_branchData\all_YEAR"
-* path to branch data
-local dir_branchdata: pwd
-
- 
-local fromscratch = 0
-local do_rate_files = 0
-local do_acc_files = 0
+local fromscratch = 1
+local do_rate_files = 1
+local do_acc_files = 1
 local product    sav25k
 
-
-
-/*--------------------------------------------------------------------------*/
-*1: FFR quarterly  
-/*--------------------------------------------------------------------------*/
-  
-capture cd  "C:\Users\begenau\Dropbox\Banks\_data\_yields\"
-capture cd  "D:\Dropbox\Banks\_data\_yields"
-* path to data
-local dir_yields: pwd
- 
-import delimited "`dir_yields'/fedFundsTarget_m.csv",   clear
-	 
-	  
-	  rename dfedtar fftar_qtr 
- 	  
-gen qrt = 1 if month ==3
-replace qrt = 2 if month == 6
-replace qrt = 3 if month == 9
-replace qrt = 4 if month == 12
-  drop if mi(qrt)
-   
-gen yq    = yq(year, qrt)
-format yq %tq
-drop month year
-
-tsset yq
-
-replace fftar_qtr = fftar_qtr /100
-gen chgFFRtar = fftar_qtr - L.fftar_qtr
-gen chgFFRtar_L = L.chgFFRtar
-gen chgFFRtar_L2 = L2.chgFFRtar
-gen chgFFRtarann = fftar_qtr - L4.fftar_qtr 
-gen chgFFRtarann_Lq2 = L2.fftar_qtr - L6.fftar_qtr 
-
-
-tempfile FFRTargetdata
-save 	`FFRTargetdata' 
-
-
-/*--------------------------------------------------------------------------*/
-*1: FFR quarterly  
-/*--------------------------------------------------------------------------*/
-  
-capture cd  "C:\Users\begenau\Dropbox\Banks\_data\_yields\"
-capture cd  "D:\Dropbox\Banks\_data\_yields"
-* path to data
-local dir_yields: pwd
- 
-import excel "`dir_yields'/fedFunds_qtr.xls", ///
-	  cellrange(A11) first clear
-	  
-gen year  = year(observation_date)	  
-gen qrt   = quarter(observation_date)
-gen yq    = yq(year, qrt)
-format yq %tq
-drop observation_date
-
-rename FEDFUNDS fedfunds_q
-
-tsset yq
-
-
-replace fedfunds_q = fedfunds_q /100
-gen chgFFR = fedfunds_q - L.fedfunds_q
-gen chgFFR_L = L.chgFFR
-gen chgFFRann = fedfunds_q - L4.fedfunds_q 
-gen chgFFRann_L2 = L2.chgFFRann
-
- 
- 
-tempfile FFRdata
-save 	`FFRdata' 
 
 
 if `fromscratch' ==1 {
@@ -105,12 +10,12 @@ if `fromscratch' ==1 {
 /*--------------------------------------------------------------------------*/
 *1: Deposit Certificate History
 /*--------------------------------------------------------------------------*/
-use  "`dir_ratewatch'\DepositCertChgHist.dta", clear
+import delimited "/zfs/data/ratewatch/RateWatchScholar_7_29_22/RW_DepositDataFeedMASTER_thruMay2020/RW_DepositDataFeedMASTER/DepositCertChgHist.txt", clear
 
 gen acct_nbr_loc = acctnbr 
 
 // generate date  
-drop chgtm
+drop chgtms
 egen date = sieve(chgdt), omit(/)
 gen year =substr(date, 5,8) 
 gen month =substr(date, 1,2)
@@ -187,7 +92,12 @@ save `history'
 *2: Rate Accounts
 /*--------------------------------------------------------------------------*/
   
-use  "`dir_ratewatch'\Deposit_acct_join.dta", clear
+import delimited "/zfs/data/ratewatch/RateWatchScholar_7_29_22/RW_DepositDataFeedMASTER_thruMay2020/RW_DepositDataFeedMASTER/Deposit_acct_join.txt", clear
+
+rename v1 acct_nbr_loc
+rename v2 acct_nbr_rt
+rename v3 prd_typ_join
+rename v4 eff_date
 
 // focus on those products only
 keep if prd_typ_join =="MM" | prd_typ_join =="CD"
@@ -492,7 +402,7 @@ rename toncuanbr_n toncuanbr
 gen acct_nbr = acct_nbr_loc
 
 // merge with branch bank information from rate watch
-merge m:1 acct_nbr  using "`dir_ratewatch'\Deposit_InstitutionDetails.dta" ,  keepusing(cert_nbr  uninumbr branches  rssd_id cnty_fps state_fps  msa  zip)  keep(3) nogen
+merge m:1 acct_nbr  using  "Deposit_InstitutionDetails.dta" ,  keepusing(cert_nbr  uninumbr branches  rssd_id cnty_fps state_fps  msa  zip)  keep(3) nogen 
 
 rename rssd_id rssdid_RW
 drop if mi(id_loc)
@@ -523,8 +433,8 @@ save "`dir_ratewatch'\ratesetloc.dta", replace
 // 2014 2015 2016 2017 2018 2019 2020
 foreach data in 2001 2002 2003   2004 2005 2006 2007 2008 2009 2010  2011 2012 2013 ///
                 2014 2015 2016   2017 2018 2019 2020 {
-	 
-import delimited "`dir_ratewatch'\depositRateData_clean_`data'.txt", clear bindquote(nobind)
+
+import delimited "/zfs/data/ratewatch/RateWatchScholar_7_29_22/RW_DepositDataFeedMASTER_thruMay2020/RW_DepositDataFeedMASTER/depositRateData_clean_`data'.txt", clear bindquote(nobind)
 
 disp "`data'"
 gen broadtype  = substr(productdescription, 1,4)
@@ -632,8 +542,6 @@ winsor2 apy, replace cuts(0.5 99.5) by(date_q) // winsorize data
 
 // merge with FFR data 
 gen yq = date_q
-merge m:1 yq using	`FFRdata' , keep(3) nogen
-merge m:1 yq using	`FFRTargetdata' , keep(3) nogen
 
 // gen zip code 
 gen zip_des =substr(zip, 1,5) 
@@ -648,7 +556,7 @@ rename cert_nbr cert
 replace uninumbr = 0 if mi(uninumbr)
 
 // merge with FDIC branch level data 
-  merge m:1 cert   uninumbr  yq  using  "`dir_branchdata'\branchleveldata_forRWmerge.dta" ,  keepusing(HHI_branch  asset depsum depdom depsumbr rssdhcr pubtraded HHI_branch_9414 HHI_branch_9413 HHI_bank HHI_bank_avg bigbank rssdid stcntybr)   // do not force to be a branch in thefdic data 
+  merge m:1 cert   uninumbr  yq  using  "branchleveldata_forRWmerge.dta" ,  keepusing(HHI_branch  asset depsum depdom depsumbr rssdhcr pubtraded HHI_branch_9414 HHI_branch_9413 HHI_bank HHI_bank_avg bigbank rssdid stcntybr)   // do not force to be a branch in thefdic data 
 
   // gen county & state identifier 
 gen stcntybr_rw = state_fps*1000 + cnty_fps 
@@ -690,7 +598,7 @@ gen network_branch =  ~independent_branch
   
  // merge with DSS Herfindahl index 
   gen fips = stcntybr 
-merge m:1  fips using  "`dir_branchdata'\avgherfdepcty_DSS.dta"  , keep(match) nogen 
+merge m:1  fips using  "avgherfdepcty_DSS.dta"  , keep(match) nogen 
 
 //------------------------------------------------
 // 6. Save data - ready for analysis
@@ -698,12 +606,12 @@ merge m:1  fips using  "`dir_branchdata'\avgherfdepcty_DSS.dta"  , keep(match) n
 drop eff_date cd10k sav* 
  
 // save full sample
-save "`dir_ratewatch'\ratewatch_full_`product'.dta", replace
+save "ratewatch_full_`product'.dta", replace
  
   	
 // save DSS sample
 keep if year<=2013 
 keep if acct_nbr_loc ==acct_nbr_rt
-save "`dir_ratewatch'\ratewatch_DSS_`product'.dta", replace
+save "ratewatch_DSS_`product'.dta", replace
  
  	
