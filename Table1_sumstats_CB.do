@@ -3,15 +3,7 @@ clear
 //global dropbox = "D:\Dropbox"
 global dropbox = "C:\Users\begenau\Dropbox"
 
-// path to commercial bank data
-cd "$dropbox\Banks\_data\_commercialbank\"
-local dir_cb_data: pwd
-* path to rate watch data
-cd  "$dropbox\Banks\_data\_rateWatch"
-local dir_rw_data: pwd
-* path to output files
-cd  "$dropbox\Banks\UnstableInference\_table"
-local dir_table: pwd  
+
  /*
 //drop if date<19960331
 /*
@@ -72,7 +64,7 @@ count if same_state_fraction==1
 
  */
 // Load data  //
-use "`dir_cb_data'\bankleveldata_05112021.dta", clear 
+use "bankleveldata_05112021.dta", clear 
  
 // sample ratewatch merge 
 drop if year <2001
@@ -94,7 +86,7 @@ rename _merge mergeC2Bdata
 
 //merge 1:1 yq rssid using `bigIndicator', keep(1 3) nogen
 
-merge 1:m yq rssdid cert using "`dir_rw_data'\ratewatch_full_sav25k.dta"  , keep(match) nogen 
+merge 1:m yq rssdid cert using "ratewatch_full_.dta"  , keep(match) nogen 
 //drop i f date<19960331
  
 preserve 
@@ -292,7 +284,7 @@ columns(statistics) listwise   nototal
  
 
 esttab ., cells("mean(fmt(%15.0f))") label  noobs  
-esttab using   "`dir_table'\SumStats.tex", replace booktabs    cells((mean(fmt(0 0 0 0 0 0  2  0 2  2 2 2  2 1 1 1 0 0 2  2 ))) ) mlabel(none) ///
+esttab using   "SumStats.tex", replace booktabs    cells((mean(fmt(0 0 0 0 0 0  2  0 2  2 2 2  2 1 1 1 0 0 2  2 ))) ) mlabel(none) ///
 collabels("")  unstack noobs nonote  nonumber wide label substitute(\_$ \\$ )  mgroups("Bank Deciles", pattern( 1 0 0 0 0 0)    prefix(\multicolumn{@span}{c}{) suffix(}) span erepeat(\cmidrule(lr){@span})) 
 
  
